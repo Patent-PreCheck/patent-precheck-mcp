@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "patent-precheck": {
+      "command": "npx",
+      "args": ["-y", "@patentprecheck/mcp", "mcp"]
+    }
+  }
+}

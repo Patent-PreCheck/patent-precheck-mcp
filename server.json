@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Patent-PreCheck/patent-precheck",
+  "title": "Patent PreCheck",
+  "description": "Patentability pre-check for code: USPTO pillar scores, filing-readiness, and prior-art signals.",
+  "version": "0.1.2",
+  "websiteUrl": "https://patentprecheck.com/integrations",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@patentprecheck/mcp",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "npx",
+      "runtimeArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ]
+    }
+  ]
+}

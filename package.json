@@ -1,0 +1,53 @@
+{
+  "name": "@patentprecheck/mcp",
+  "version": "0.1.2",
+  "mcpName": "io.github.Patent-PreCheck/patent-precheck",
+  "description": "Patent PreCheck CLI + MCP server — run a patentability pre-check on your code from inside Cursor, Claude Code, Codex, and other AI coding agents.",
+  "homepage": "https://patentprecheck.com/integrations",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Patent-PreCheck/patent-precheck-mcp.git"
+  },
+  "bugs": {
+    "url": "https://patentprecheck.com/contact",
+    "email": "info@patentprecheck.com"
+  },
+  "type": "module",
+  "bin": {
+    "precheck": "bin/precheck.js"
+  },
+  "exports": {
+    ".": "./src/server.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "server.json",
+    "SKILL.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node bin/precheck.js mcp",
+    "smoke": "node bin/precheck.js score - --format text"
+  },
+  "keywords": [
+    "patent",
+    "patentability",
+    "mcp",
+    "cli",
+    "ai-agent",
+    "cursor",
+    "claude-code",
+    "codex",
+    "prior-art"
+  ],
+  "author": "Patent PreCheck",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}
