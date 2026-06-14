@@ -72,6 +72,24 @@ Cursor users can skip the JSON and use the **Add to Cursor** button at the top.
 The server is published to the [official MCP Registry](https://registry.modelcontextprotocol.io)
 (`io.github.Patent-PreCheck/patent-precheck`), so MCP-aware clients can discover it directly.
 
+### Hosted endpoint (no install)
+
+There's also a hosted, keyless **Streamable HTTP** MCP server, so remote-capable
+clients can connect without `npx` or a local Node install:
+
+```
+https://patentprecheck.com/mcp
+```
+
+```json
+// Cursor — remote server, no command needed
+{ "mcpServers": { "patent-precheck": { "url": "https://patentprecheck.com/mcp" } } }
+```
+
+Same three tools and the same scoring engine. The hosted variant takes invention
+text inline via `code` (it never reads files from your machine — use the local
+`npx` server above if you want the `path` argument).
+
 ## Develop from source
 
 ```sh

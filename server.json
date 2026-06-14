@@ -3,7 +3,7 @@
   "name": "io.github.Patent-PreCheck/patent-precheck",
   "title": "Patent PreCheck",
   "description": "Patentability pre-check for code: USPTO pillar scores, filing-readiness, and prior-art signals.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "websiteUrl": "https://patentprecheck.com/integrations",
   "packages": [
     {
@@ -20,6 +20,12 @@
           "value": "mcp"
         }
       ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://patentprecheck.com/mcp"
     }
   ]
 }
