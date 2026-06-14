@@ -2,8 +2,13 @@
 
 [![npm version](https://img.shields.io/npm/v/@patentprecheck/mcp.svg)](https://www.npmjs.com/package/@patentprecheck/mcp)
 [![npm downloads](https://img.shields.io/npm/dm/@patentprecheck/mcp.svg)](https://www.npmjs.com/package/@patentprecheck/mcp)
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-listed-1f6feb.svg)](https://registry.modelcontextprotocol.io)
 [![license](https://img.shields.io/npm/l/@patentprecheck/mcp.svg)](./LICENSE)
 [![node](https://img.shields.io/node/v/@patentprecheck/mcp.svg)](https://nodejs.org)
+
+[![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=patent-precheck&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkBwYXRlbnRwcmVjaGVjay9tY3AiLCJtY3AiXX0=)
+
+[![Glama](https://glama.ai/mcp/servers/zw7eujjcmp/badge)](https://glama.ai/mcp/servers/zw7eujjcmp)
 
 Run a patentability pre-check on your code from inside your terminal or your AI
 coding agent (Cursor, Claude Code, Codex, Antigravity). It wraps the hosted
@@ -62,6 +67,10 @@ claude mcp add patent-precheck -- npx -y @patentprecheck/mcp mcp
 ```
 
 MCP tools: `precheck_score`, `precheck_pillars`, `precheck_start_review`.
+
+Cursor users can skip the JSON and use the **Add to Cursor** button at the top.
+The server is published to the [official MCP Registry](https://registry.modelcontextprotocol.io)
+(`io.github.Patent-PreCheck/patent-precheck`), so MCP-aware clients can discover it directly.
 
 ## Develop from source
 

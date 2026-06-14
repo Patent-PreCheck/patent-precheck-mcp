@@ -31,6 +31,7 @@
   },
   "scripts": {
     "start": "node bin/precheck.js mcp",
+    "test": "node --test test/*.test.js",
     "smoke": "node bin/precheck.js score - --format text"
   },
   "keywords": [
