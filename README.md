@@ -8,7 +8,7 @@
 
 [![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=patent-precheck&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkBwYXRlbnRwcmVjaGVjay9tY3AiLCJtY3AiXX0=)
 
-[![Glama](https://glama.ai/mcp/servers/zw7eujjcmp/badge)](https://glama.ai/mcp/servers/zw7eujjcmp)
+[![Patent-PreCheck/patent-precheck-mcp MCP server](https://glama.ai/mcp/servers/Patent-PreCheck/patent-precheck-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Patent-PreCheck/patent-precheck-mcp)
 
 Run a patentability pre-check on your code from inside your terminal or your AI
 coding agent (Cursor, Claude Code, Codex, Antigravity). It wraps the hosted
