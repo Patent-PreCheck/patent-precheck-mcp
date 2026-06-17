@@ -1,4 +1,46 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
-  "maintainers": ["kjberk13"]
+  "maintainers": ["kjberk13"],
+  "name": "patent-precheck-mcp",
+  "description": "Patentability pre-check for code: USPTO pillar scores (§101/§102/§103/§112), prior-art search, US patent lookup/compare, and Interactive Code Review funnel. Keyless — hosted MCP at https://patentprecheck.com/mcp.",
+  "type": "mcp_server",
+  "status": "stable",
+  "framework": "Node.js @modelcontextprotocol/sdk",
+  "tools": 12,
+  "transport": ["stdio", "streamable-http"],
+  "keywords": [
+    "patent",
+    "patentability",
+    "prior-art",
+    "uspto",
+    "novelty",
+    "non-obviousness",
+    "mcp-server",
+    "cursor",
+    "claude-code",
+    "ai-agent"
+  ],
+  "features": {
+    "patent_scoring": {
+      "enabled": true,
+      "tools": ["precheck_score", "precheck_pillars", "precheck_rejection_patterns", "precheck_legal_context"]
+    },
+    "prior_art": {
+      "enabled": true,
+      "tools": ["precheck_prior_art", "precheck_search_corpus"]
+    },
+    "patent_lookup": {
+      "enabled": true,
+      "tools": ["precheck_lookup_patent", "precheck_compare_to_patent"],
+      "note": "USPTO Open Data Portal — server-side API key; clients stay keyless"
+    },
+    "interactive_code_review": {
+      "enabled": true,
+      "tools": ["precheck_start_review", "precheck_session_status", "precheck_deliverables"]
+    },
+    "classification_hints": {
+      "enabled": true,
+      "tools": ["precheck_cpc_suggest"]
+    }
+  }
 }
