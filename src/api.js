@@ -7,6 +7,8 @@
 
 const DEFAULT_API = 'https://patentprecheck.com/.netlify/functions/analyze';
 const DEFAULT_SEARCH = 'https://patentprecheck.com/.netlify/functions/search-corpus';
+const DEFAULT_LOOKUP = 'https://patentprecheck.com/.netlify/functions/lookup-patent';
+const DEFAULT_COMPARE = 'https://patentprecheck.com/.netlify/functions/compare-to-patent';
 const DEFAULT_REVIEW = 'https://patentprecheck.com/.netlify/functions/review-session';
 const DEFAULT_SITE = 'https://patentprecheck.com';
 
@@ -19,6 +21,14 @@ export function apiUrl() {
 
 export function searchCorpusUrl() {
   return process.env.PRECHECK_SEARCH_URL || process.env.PPC_SEARCH_URL || DEFAULT_SEARCH;
+}
+
+export function lookupPatentUrl() {
+  return process.env.PRECHECK_LOOKUP_URL || process.env.PPC_LOOKUP_URL || DEFAULT_LOOKUP;
+}
+
+export function compareToPatentUrl() {
+  return process.env.PRECHECK_COMPARE_URL || process.env.PPC_COMPARE_URL || DEFAULT_COMPARE;
 }
 
 export function reviewSessionUrl() {
@@ -209,6 +219,42 @@ export async function callSearchCorpus({ code, filename, tier, limit, timeoutMs 
       filename: filename || 'invention.txt',
       tier: tier || defaultTier(),
       ...(Number.isFinite(Number(limit)) ? { limit: Number(limit) } : {}),
+    },
+    { timeoutMs },
+  );
+}
+
+export async function callLookupPatent({ patentId, includeGrantText = true, timeoutMs = 30000 } = {}) {
+  const id = typeof patentId === 'string' ? patentId.trim() : '';
+  if (!id) {
+    return { ok: false, status: 0, data: null, error: 'patent_id is required (e.g. US1234567B2).' };
+  }
+  return postJson(
+    lookupPatentUrl(),
+    { patent_id: id, include_grant_text: includeGrantText },
+    { timeoutMs },
+  );
+}
+
+export async function callCompareToPatent({ code, patentId, filename, timeoutMs = 45000 } = {}) {
+  if (typeof code !== 'string' || code.trim().length < MIN_CODE_CHARS) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: `Provide at least ${MIN_CODE_CHARS} characters of code or an invention description.`,
+    };
+  }
+  const id = typeof patentId === 'string' ? patentId.trim() : '';
+  if (!id) {
+    return { ok: false, status: 0, data: null, error: 'patent_id is required (e.g. US1234567B2).' };
+  }
+  return postJson(
+    compareToPatentUrl(),
+    {
+      code,
+      patent_id: id,
+      filename: filename || 'invention.txt',
     },
     { timeoutMs },
   );

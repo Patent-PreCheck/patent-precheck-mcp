@@ -3,6 +3,8 @@
 import {
   callAnalyze,
   callSearchCorpus,
+  callLookupPatent,
+  callCompareToPatent,
   callReviewSession,
   downloadArtifactUrl,
   reviewSignupUrl,
@@ -20,6 +22,8 @@ import {
   renderCpcSuggestText,
   renderSessionStatusText,
   renderDeliverablesText,
+  renderPatentLookupText,
+  renderPatentCompareText,
 } from './render.js';
 
 function textResult(text, { isError = false } = {}) {
@@ -272,6 +276,47 @@ export const HTTP_TOOL_SCHEMAS = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'precheck_lookup_patent',
+    title: 'Patent PreCheck — US patent lookup',
+    description:
+      'Resolve a US patent or application number (e.g. US1234567B2) via USPTO Open Data Portal ' +
+      'and optionally join the indexed prior-art corpus. Returns title, status, CPC, grant-text ' +
+      'excerpt, and a public URL. No API key required in the MCP client.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        patent_id: {
+          type: 'string',
+          description: 'US patent id (US1234567B2) or application number.',
+        },
+        include_grant_text: {
+          type: 'boolean',
+          description: 'Fetch abstract / claim 1 excerpt when available (default true).',
+        },
+      },
+      required: ['patent_id'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'precheck_compare_to_patent',
+    title: 'Patent PreCheck — compare invention to patent',
+    description:
+      'Compare invention text to a known US patent: embedding similarity plus prior-art risk ' +
+      'analysis (statute hints, overlap theme, distinction checklist). Use when the user names a ' +
+      'specific reference patent.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'Source code or invention description (>= 10 chars).' },
+        patent_id: { type: 'string', description: 'US patent id (e.g. US1234567B2).' },
+        filename: { type: 'string', description: 'Optional filename hint.' },
+      },
+      required: ['code', 'patent_id'],
+      additionalProperties: false,
+    },
+  },
 ];
 
 /**
@@ -435,6 +480,38 @@ export async function handleMcpTool(name, args, { allowPath = false, medium = 'a
       scorecard_pdf: downloadArtifactUrl({ reportId, artifact: 'scorecard_pdf', sessionKey }),
     };
     return textResult(renderDeliverablesText({ reportId, sessionKey, urls }));
+  }
+
+  if (name === 'precheck_lookup_patent') {
+    const patentId = typeof a.patent_id === 'string' ? a.patent_id.trim() : '';
+    if (!patentId) {
+      return textResult('patent_id is required (e.g. US1234567B2).', { isError: true });
+    }
+    const includeGrantText = a.include_grant_text !== false;
+    const { ok, data, error } = await callLookupPatent({ patentId, includeGrantText });
+    if (!ok) return textResult(`Patent PreCheck error: ${error}`, { isError: true });
+    return textResult(renderPatentLookupText(data));
+  }
+
+  if (name === 'precheck_compare_to_patent') {
+    let text = typeof a.code === 'string' ? a.code : '';
+    let filename = a.filename;
+    if (allowPath && !text && a.path) {
+      const resolved = await resolveInventionInput(a);
+      if (!resolved.ok) return textResult(resolved.error, { isError: true });
+      text = resolved.text;
+      filename = resolved.filename;
+    }
+    const patentId = typeof a.patent_id === 'string' ? a.patent_id.trim() : '';
+    if (!patentId) {
+      return textResult('patent_id is required (e.g. US1234567B2).', { isError: true });
+    }
+    if (!text || text.trim().length < MIN_CODE_CHARS) {
+      return textResult(`Provide at least ${MIN_CODE_CHARS} characters via "code".`, { isError: true });
+    }
+    const { ok, data, error } = await callCompareToPatent({ code: text, patentId, filename });
+    if (!ok) return textResult(`Patent PreCheck error: ${error}`, { isError: true });
+    return textResult(renderPatentCompareText(data, { filename }));
   }
 
   const err = new Error(`Unknown tool: ${name}`);

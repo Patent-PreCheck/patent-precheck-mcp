@@ -203,6 +203,40 @@ export function buildServer(version = readPkgVersion()) {
     async (args) => handleMcpTool('precheck_deliverables', args, { medium: 'ai-agent' }),
   );
 
+  server.registerTool(
+    'precheck_lookup_patent',
+    {
+      title: 'Patent PreCheck — US patent lookup',
+      description:
+        'Resolve a US patent or application number via USPTO ODP and optional corpus join.',
+      inputSchema: {
+        patent_id: z.string().describe('US patent id (e.g. US1234567B2) or application number.'),
+        include_grant_text: z
+          .boolean()
+          .optional()
+          .describe('Fetch abstract / claim 1 excerpt when available (default true).'),
+      },
+    },
+    async (args) => handleMcpTool('precheck_lookup_patent', args, { medium: 'ai-agent' }),
+  );
+
+  server.registerTool(
+    'precheck_compare_to_patent',
+    {
+      title: 'Patent PreCheck — compare invention to patent',
+      description:
+        'Compare invention text to a known US patent: embedding similarity and prior-art risk analysis.',
+      inputSchema: {
+        code: z.string().describe('Source code or invention description (>= 10 chars).'),
+        patent_id: z.string().describe('US patent id (e.g. US1234567B2).'),
+        filename: z.string().optional().describe('Optional filename hint.'),
+        path: z.string().optional().describe('Local file path (stdio server only).'),
+      },
+    },
+    async (args) =>
+      handleMcpTool('precheck_compare_to_patent', args, { allowPath: true, medium: 'ai-agent' }),
+  );
+
   return server;
 }
 

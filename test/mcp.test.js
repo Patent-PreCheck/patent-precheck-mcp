@@ -30,9 +30,11 @@ test('MCP server initializes and lists all tools', async () => {
   const list = byId(responses, 2);
   const names = list.result.tools.map((t) => t.name).sort();
   assert.deepEqual(names, [
+    'precheck_compare_to_patent',
     'precheck_cpc_suggest',
     'precheck_deliverables',
     'precheck_legal_context',
+    'precheck_lookup_patent',
     'precheck_pillars',
     'precheck_prior_art',
     'precheck_rejection_patterns',
@@ -224,4 +226,79 @@ test('precheck_deliverables returns download URLs', async () => {
   assert.match(res.result.content[0].text, /filing_packet/);
   assert.match(res.result.content[0].text, /report_id=PPC-2026-06-15-ABCDE/);
   assert.match(res.result.content[0].text, /k=test-key/);
+});
+
+test('precheck_lookup_patent returns formatted metadata', async () => {
+  const stub = await startStub({
+    path: '/lookup-patent',
+    body: {
+      query: 'US1234567B2',
+      parsed: { display: 'US1234567B2' },
+      odp_available: true,
+      odp_found: true,
+      odp: { title: 'Distributed throttling system', patent_number: '1234567' },
+      uspto_public_url: 'https://patents.google.com/patent/US1234567B2',
+    },
+  });
+  try {
+    const { responses } = await runMcp(
+      [
+        INIT,
+        {
+          jsonrpc: '2.0',
+          id: 12,
+          method: 'tools/call',
+          params: { name: 'precheck_lookup_patent', arguments: { patent_id: 'US1234567B2' } },
+        },
+      ],
+      { env: { PRECHECK_LOOKUP_URL: stub.url } },
+    );
+    const res = byId(responses, 12);
+    assert.ok(!res.result.isError);
+    assert.match(res.result.content[0].text, /Patent lookup/);
+    assert.match(res.result.content[0].text, /Distributed throttling/);
+    assert.equal(stub.requests.length, 1);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('precheck_compare_to_patent returns similarity analysis', async () => {
+  const stub = await startStub({
+    path: '/compare-to-patent',
+    body: {
+      patent_query: 'US1234567B2',
+      patent: { display_id: 'US1234567B2', title: 'Distributed throttling system' },
+      relevance_pct: 71,
+      prior_art_analysis: {
+        prior_art_risk: 'medium',
+        summary_sentence: 'Moderate corpus overlap.',
+        closest_references: [{ title: 'Distributed throttling system', likely_statute: '§103' }],
+      },
+    },
+  });
+  try {
+    const { responses } = await runMcp(
+      [
+        INIT,
+        {
+          jsonrpc: '2.0',
+          id: 13,
+          method: 'tools/call',
+          params: {
+            name: 'precheck_compare_to_patent',
+            arguments: { code: LONG_INPUT, patent_id: 'US1234567B2' },
+          },
+        },
+      ],
+      { env: { PRECHECK_COMPARE_URL: stub.url } },
+    );
+    const res = byId(responses, 13);
+    assert.ok(!res.result.isError);
+    assert.match(res.result.content[0].text, /Compare to patent/);
+    assert.match(res.result.content[0].text, /71%/);
+    assert.equal(stub.requests.length, 1);
+  } finally {
+    await stub.close();
+  }
 });

@@ -1,0 +1,29 @@
+name: MCP smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build MCP image
+        run: docker build -t patent-precheck-mcp .
+      - name: Stdio tools/list smoke
+        run: |
+          out=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | docker run -i patent-precheck-mcp)
+          echo "$out" | head -1 | grep -q precheck_score

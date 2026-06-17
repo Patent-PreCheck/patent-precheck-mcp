@@ -332,6 +332,89 @@ export function renderSessionStatusText(data) {
   return lines.join('\n');
 }
 
+/** Render US patent lookup results. */
+export function renderPatentLookupText(data) {
+  if (!data || typeof data !== 'object') return 'No patent lookup results.';
+  const lines = [];
+  const label = data.parsed?.display || data.query || 'Patent lookup';
+  lines.push(`Patent lookup — ${label}`);
+  lines.push('='.repeat(20 + label.length));
+  lines.push('');
+  if (!data.odp_available) {
+    lines.push('USPTO Open Data Portal is not configured server-side — metadata may be limited.');
+    lines.push('');
+  }
+  if (data.odp) {
+    if (data.odp.title) lines.push(`Title: ${data.odp.title}`);
+    if (data.odp.patent_number) lines.push(`Patent number: US${data.odp.patent_number}`);
+    if (data.odp.application_number) lines.push(`Application: ${data.odp.application_number}`);
+    if (data.odp.status) lines.push(`Status: ${data.odp.status}`);
+    if (data.odp.filing_date) lines.push(`Filing date: ${data.odp.filing_date}`);
+    if (data.odp.grant_date) lines.push(`Grant date: ${data.odp.grant_date}`);
+    if (data.odp.first_inventor) lines.push(`First inventor: ${data.odp.first_inventor}`);
+    if (data.odp.cpc?.length) lines.push(`CPC: ${data.odp.cpc.join(', ')}`);
+  }
+  if (data.grant_text?.abstract) {
+    lines.push('');
+    lines.push('Abstract (excerpt):');
+    lines.push(data.grant_text.abstract.slice(0, 500));
+  }
+  if (data.corpus?.title) {
+    lines.push('');
+    lines.push(`Corpus match: ${data.corpus.title} (native_id ${data.corpus.native_id})`);
+  }
+  if (data.uspto_public_url) {
+    lines.push('');
+    lines.push(data.uspto_public_url);
+  }
+  lines.push('');
+  lines.push('Informational only — not legal advice.');
+  return lines.join('\n');
+}
+
+/** Render invention vs known-patent comparison. */
+export function renderPatentCompareText(data, { filename } = {}) {
+  if (!data || typeof data !== 'object') return 'No comparison results.';
+  const lines = [];
+  const title = filename ? `Compare to patent — ${filename}` : 'Compare to patent';
+  lines.push(title);
+  lines.push('='.repeat(title.length));
+  lines.push('');
+  const p = data.patent || {};
+  lines.push(`Reference: ${p.display_id || data.patent_query}`);
+  if (p.title) lines.push(`Title: ${p.title}`);
+  if (data.relevance_pct != null) lines.push(`Embedding similarity: ~${data.relevance_pct}%`);
+  const analysis = data.prior_art_analysis || {};
+  if (analysis.prior_art_risk) lines.push(`Prior-art risk: ${analysis.prior_art_risk}`);
+  if (analysis.summary_sentence) {
+    lines.push('');
+    lines.push(analysis.summary_sentence);
+  }
+  const refs = Array.isArray(analysis.closest_references) ? analysis.closest_references : [];
+  if (refs.length) {
+    lines.push('');
+    lines.push('Closest reference:');
+    const r = refs[0];
+    lines.push(`  ${r.title || '(untitled)'}`);
+    if (r.likely_statute) lines.push(`  Likely statute: ${r.likely_statute}`);
+    if (r.overlap_theme) lines.push(`  Theme: ${r.overlap_theme}`);
+    if (r.examiner_note) lines.push(`  Note: ${r.examiner_note}`);
+  }
+  const checklist = Array.isArray(analysis.distinction_checklist) ? analysis.distinction_checklist : [];
+  if (checklist.length) {
+    lines.push('');
+    lines.push('Distinction checklist:');
+    checklist.forEach((item, i) => lines.push(`  ${i + 1}. ${item}`));
+  }
+  if (p.url) {
+    lines.push('');
+    lines.push(p.url);
+  }
+  lines.push('');
+  lines.push('Informational only — not legal advice.');
+  return lines.join('\n');
+}
+
 /** Render deliverable download URLs. */
 export function renderDeliverablesText({ reportId, sessionKey, urls }) {
   const lines = [];
