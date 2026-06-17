@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { startStub, runMcp } from './helpers.js';
+import { startStub, runMcp, SAMPLE_CORPUS_RESULT } from './helpers.js';
 
 const INIT = {
   jsonrpc: '2.0',
@@ -22,14 +22,25 @@ function byId(responses, id) {
   return responses.find((r) => r.id === id);
 }
 
-test('MCP server initializes and lists all three tools', async () => {
+test('MCP server initializes and lists all tools', async () => {
   const { responses } = await runMcp([INIT, { jsonrpc: '2.0', id: 2, method: 'tools/list' }]);
   const init = byId(responses, 1);
   assert.equal(init.result.serverInfo.name, 'patent-precheck');
 
   const list = byId(responses, 2);
   const names = list.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['precheck_pillars', 'precheck_score', 'precheck_start_review']);
+  assert.deepEqual(names, [
+    'precheck_cpc_suggest',
+    'precheck_deliverables',
+    'precheck_legal_context',
+    'precheck_pillars',
+    'precheck_prior_art',
+    'precheck_rejection_patterns',
+    'precheck_score',
+    'precheck_search_corpus',
+    'precheck_session_status',
+    'precheck_start_review',
+  ]);
 });
 
 test('precheck_score tool returns a summary plus raw JSON', async () => {
@@ -91,12 +102,126 @@ test('precheck_start_review returns the attributed signup URL', async () => {
         jsonrpc: '2.0',
         id: 6,
         method: 'tools/call',
-        params: { name: 'precheck_start_review', arguments: {} },
+        params: { name: 'precheck_start_review', arguments: { promo: 'Beta' } },
       },
     ],
     { env: { PRECHECK_SITE_URL: 'https://example.test' } },
   );
   const res = byId(responses, 6);
   assert.match(res.result.content[0].text, /example\.test\/review-signup/);
+  assert.match(res.result.content[0].text, /promo=Beta/);
   assert.match(res.result.content[0].text, /utm_medium=ai-agent/);
+});
+
+test('precheck_prior_art returns formatted matches', async () => {
+  const stub = await startStub();
+  try {
+    const { responses } = await runMcp(
+      [
+        INIT,
+        {
+          jsonrpc: '2.0',
+          id: 7,
+          method: 'tools/call',
+          params: { name: 'precheck_prior_art', arguments: { code: LONG_INPUT, limit: 3 } },
+        },
+      ],
+      { env: { PRECHECK_API_URL: stub.url, PRECHECK_SITE_URL: 'https://example.test' } },
+    );
+    const res = byId(responses, 7);
+    assert.ok(!res.result.isError);
+    assert.match(res.result.content[0].text, /Prior art/);
+    assert.match(res.result.content[0].text, /US1234567/);
+    assert.equal(stub.requests.length, 1);
+    assert.equal(stub.requests[0].body.agent_insights, true);
+    assert.equal(stub.requests[0].body.prior_art_limit, 3);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('precheck_rejection_patterns returns risk summary', async () => {
+  const stub = await startStub();
+  try {
+    const { responses } = await runMcp(
+      [
+        INIT,
+        {
+          jsonrpc: '2.0',
+          id: 8,
+          method: 'tools/call',
+          params: { name: 'precheck_rejection_patterns', arguments: { code: LONG_INPUT } },
+        },
+      ],
+      { env: { PRECHECK_API_URL: stub.url } },
+    );
+    const res = byId(responses, 8);
+    assert.match(res.result.content[0].text, /Risk level: moderate/);
+    assert.match(res.result.content[0].text, /§103/);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('precheck_cpc_suggest returns offline CPC hints', async () => {
+  const { responses } = await runMcp([
+    INIT,
+    {
+      jsonrpc: '2.0',
+      id: 9,
+      method: 'tools/call',
+      params: { name: 'precheck_cpc_suggest', arguments: { code: LONG_INPUT } },
+    },
+  ]);
+  const res = byId(responses, 9);
+  assert.ok(!res.result.isError);
+  assert.match(res.result.content[0].text, /CPC classification suggestions/);
+  assert.match(res.result.content[0].text, /G06F9\/50/);
+});
+
+test('precheck_search_corpus returns formatted matches', async () => {
+  const stub = await startStub({ body: SAMPLE_CORPUS_RESULT, path: '/search-corpus' });
+  try {
+    const { responses } = await runMcp(
+      [
+        INIT,
+        {
+          jsonrpc: '2.0',
+          id: 10,
+          method: 'tools/call',
+          params: { name: 'precheck_search_corpus', arguments: { code: LONG_INPUT, limit: 5 } },
+        },
+      ],
+      { env: { PRECHECK_SEARCH_URL: stub.url } },
+    );
+    const res = byId(responses, 10);
+    assert.ok(!res.result.isError);
+    assert.match(res.result.content[0].text, /Corpus search/);
+    assert.match(res.result.content[0].text, /US1234567/);
+    assert.equal(stub.requests.length, 1);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('precheck_deliverables returns download URLs', async () => {
+  const { responses } = await runMcp(
+    [
+      INIT,
+      {
+        jsonrpc: '2.0',
+        id: 11,
+        method: 'tools/call',
+        params: {
+          name: 'precheck_deliverables',
+          arguments: { report_id: 'PPC-2026-06-15-ABCDE', session_key: 'test-key' },
+        },
+      },
+    ],
+    { env: { PRECHECK_API_URL: 'https://example.test/.netlify/functions/analyze' } },
+  );
+  const res = byId(responses, 11);
+  assert.match(res.result.content[0].text, /filing_packet/);
+  assert.match(res.result.content[0].text, /report_id=PPC-2026-06-15-ABCDE/);
+  assert.match(res.result.content[0].text, /k=test-key/);
 });

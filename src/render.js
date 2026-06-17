@@ -110,3 +110,241 @@ export function renderScoreText(data, { filename, medium = 'cli' } = {}) {
 
   return lines.join('\n');
 }
+
+function priorArtRows(data, limit = 8) {
+  const matches = Array.isArray(data.prior_art_matches) ? data.prior_art_matches : [];
+  if (matches.length) {
+    return matches.slice(0, limit).map((m) => ({
+      title: m.title,
+      source: m.source || m.source_id,
+      similarity: m.similarity,
+      url: m.url,
+      doc_type: m.doc_type,
+    }));
+  }
+  const teaser = Array.isArray(data.prior_art_teaser) ? data.prior_art_teaser : [];
+  return teaser.slice(0, limit).map((t) =>
+    typeof t === 'string'
+      ? { title: t, source: null, similarity: null, url: null, doc_type: null }
+      : {
+          title: t.title,
+          source: t.source,
+          similarity: t.similarity,
+          url: t.url,
+          doc_type: t.doc_type,
+        },
+  );
+}
+
+function formatSimilarity(sim) {
+  const n = Number(sim);
+  if (!Number.isFinite(n)) return null;
+  const pct = n <= 1 ? Math.round(n * 100) : Math.round(n);
+  return `${pct}%`;
+}
+
+/** Render prior-art matches from an analyze result. */
+export function renderPriorArtText(data, { filename, limit = 8 } = {}) {
+  if (!data || typeof data !== 'object') return 'No prior-art data.';
+  const lines = [];
+  const title = filename ? `Prior art — ${filename}` : 'Prior art matches';
+  lines.push(title);
+  lines.push('='.repeat(title.length));
+  lines.push('');
+  lines.push(`Total consulted: ${data.prior_art_match_count ?? priorArtRows(data, limit).length}`);
+  if (data.prior_art_status) lines.push(`Search status: ${data.prior_art_status}`);
+
+  const rows = priorArtRows(data, limit);
+  if (!rows.length) {
+    lines.push('');
+    lines.push('No prior-art matches were returned for this invention.');
+    return lines.join('\n');
+  }
+
+  lines.push('');
+  lines.push(`Top ${rows.length} matches:`);
+  rows.forEach((row, i) => {
+    const sim = formatSimilarity(row.similarity);
+    const meta = [row.source, row.doc_type, sim ? `similarity ${sim}` : null]
+      .filter(Boolean)
+      .join(' · ');
+    lines.push(`  ${i + 1}. ${row.title || '(untitled)'}`);
+    if (meta) lines.push(`     ${meta}`);
+    if (row.url) lines.push(`     ${row.url}`);
+  });
+
+  lines.push('');
+  lines.push('Informational only — not legal advice.');
+  return lines.join('\n');
+}
+
+/** Render rejection-pattern preview from an analyze result. */
+export function renderRejectionPatternsText(data, { filename } = {}) {
+  if (!data || typeof data !== 'object') return 'No rejection-pattern data.';
+  const lines = [];
+  const title = filename ? `Examination risk — ${filename}` : 'Examination risk preview';
+  lines.push(title);
+  lines.push('='.repeat(title.length));
+
+  const summary = data.examination_risk_summary || null;
+  const neighbors = Array.isArray(data.rejection_neighbors) ? data.rejection_neighbors : [];
+
+  lines.push('');
+  if (summary) {
+    lines.push(`Risk level: ${summary.risk_level || 'unknown'}`);
+    if (summary.primary_basis) lines.push(`Primary basis: ${summary.primary_basis}`);
+    lines.push(`Pattern neighbors: ${summary.neighbor_count ?? neighbors.length}`);
+  } else if (!neighbors.length) {
+    lines.push('No examination-risk patterns were identified from the prior-art corpus.');
+    lines.push('Informational only — not legal advice.');
+    return lines.join('\n');
+  }
+
+  if (neighbors.length) {
+    lines.push('');
+    lines.push('Similar rejection / abandonment patterns:');
+    neighbors.forEach((n, i) => {
+      const sim = Number.isFinite(Number(n.similarity)) ? `${n.similarity}%` : null;
+      lines.push(`  ${i + 1}. ${n.title || '(untitled)'}`);
+      const meta = [n.rejection_basis, n.source_id, sim ? `similarity ${sim}` : null]
+        .filter(Boolean)
+        .join(' · ');
+      if (meta) lines.push(`     ${meta}`);
+      if (n.snippet) lines.push(`     “${String(n.snippet).slice(0, 180)}…”`);
+      if (n.url) lines.push(`     ${n.url}`);
+    });
+  }
+
+  lines.push('');
+  lines.push('Informational only — not legal advice.');
+  return lines.join('\n');
+}
+
+/** Render legal guidance snippet from an analyze result. */
+export function renderLegalContextText(data, { filename } = {}) {
+  if (!data || typeof data !== 'object') return 'No legal context.';
+  const lines = [];
+  const title = filename ? `Legal context — ${filename}` : 'Legal intelligence context';
+  lines.push(title);
+  lines.push('='.repeat(title.length));
+  lines.push('');
+
+  const snippet =
+    typeof data.legal_guidance_snippet === 'string' ? data.legal_guidance_snippet.trim() : '';
+  if (!snippet) {
+    lines.push('No legal guidance snippet is available for this request.');
+    lines.push('The legal-intel feed may be temporarily unavailable.');
+  } else {
+    lines.push(snippet);
+  }
+
+  if (data.technology_domain) {
+    lines.push('');
+    lines.push(`Technology domain detected: ${data.technology_domain}`);
+  }
+
+  lines.push('');
+  lines.push('Informational only — not legal advice. Consult a licensed patent attorney.');
+  return lines.join('\n');
+}
+
+/** Render corpus search results. */
+export function renderCorpusSearchText(data, { filename, limit = 12 } = {}) {
+  if (!data || typeof data !== 'object') return 'No search results.';
+  const lines = [];
+  const title = filename ? `Corpus search — ${filename}` : 'Corpus search results';
+  lines.push(title);
+  lines.push('='.repeat(title.length));
+  lines.push('');
+  lines.push(`Technology domain: ${data.technology_domain || 'general'}`);
+  lines.push(`Matches found: ${data.prior_art_match_count ?? 0}`);
+  if (data.prior_art_status) lines.push(`Search status: ${data.prior_art_status}`);
+
+  const matches = Array.isArray(data.matches) ? data.matches.slice(0, limit) : [];
+  if (matches.length) {
+    lines.push('');
+    lines.push(`Top ${matches.length} matches:`);
+    matches.forEach((m, i) => {
+      const sim =
+        m.similarity != null && Number.isFinite(Number(m.similarity))
+          ? `${Math.round(Number(m.similarity) <= 1 ? Number(m.similarity) * 100 : Number(m.similarity))}%`
+          : null;
+      const meta = [m.source, m.doc_type, sim ? `similarity ${sim}` : null].filter(Boolean).join(' · ');
+      lines.push(`  ${i + 1}. ${m.title || '(untitled)'}`);
+      if (meta) lines.push(`     ${meta}`);
+      if (m.url) lines.push(`     ${m.url}`);
+    });
+  }
+
+  lines.push('');
+  lines.push('Informational only — not legal advice.');
+  return lines.join('\n');
+}
+
+/** Render CPC classification suggestions. */
+export function renderCpcSuggestText(result, { filename } = {}) {
+  const lines = [];
+  const title = filename ? `CPC suggestions — ${filename}` : 'CPC classification suggestions';
+  lines.push(title);
+  lines.push('='.repeat(title.length));
+  lines.push('');
+  lines.push(`Detected domain: ${result.domain || 'general'}`);
+  const suggestions = Array.isArray(result.suggestions) ? result.suggestions : [];
+  if (!suggestions.length) {
+    lines.push('No CPC suggestions available.');
+    return lines.join('\n');
+  }
+  lines.push('');
+  suggestions.forEach((s, i) => {
+    lines.push(`  ${i + 1}. ${s.code} — ${s.label}`);
+    if (s.confidence || s.reason) {
+      lines.push(`     ${[s.confidence, s.reason].filter(Boolean).join(' · ')}`);
+    }
+  });
+  lines.push('');
+  lines.push('Informational only — verify classifications with a patent practitioner.');
+  return lines.join('\n');
+}
+
+/** Render ICR session status summary. */
+export function renderSessionStatusText(data) {
+  if (!data || typeof data !== 'object') return 'No session data.';
+  const lines = [];
+  lines.push(`Interactive Code Review — ${data.report_id || 'session'}`);
+  lines.push('='.repeat(40));
+  lines.push('');
+  lines.push(`State: ${data.state || 'unknown'}`);
+  lines.push(`Review mode: ${data.review_mode || 'unknown'}`);
+  lines.push(`Editable: ${data.session_editable ? 'yes' : 'no'}`);
+  if (data.session_end_date) lines.push(`Session ends: ${data.session_end_date}`);
+
+  const session = data.session_state || {};
+  if (session.patentability_score != null) {
+    lines.push(`Current patentability score: ${session.patentability_score}/100`);
+  }
+  if (session.coach_started != null) {
+    lines.push(`Coach started: ${session.coach_started ? 'yes' : 'no'}`);
+  }
+  if (session.locked) lines.push('Session finalized: yes');
+
+  lines.push('');
+  lines.push('Session key is required for downloads — use precheck_deliverables.');
+  return lines.join('\n');
+}
+
+/** Render deliverable download URLs. */
+export function renderDeliverablesText({ reportId, sessionKey, urls }) {
+  const lines = [];
+  lines.push(`Deliverables for ${reportId}`);
+  lines.push('='.repeat(24));
+  lines.push('');
+  lines.push('Open these links in a browser (requires the session key from your access email):');
+  lines.push('');
+  for (const [label, url] of Object.entries(urls || {})) {
+    lines.push(`${label}:`);
+    lines.push(`  ${url}`);
+  }
+  lines.push('');
+  lines.push('Links expire when the 30-day review window closes.');
+  return lines.join('\n');
+}

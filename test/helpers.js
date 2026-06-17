@@ -29,7 +29,29 @@ export const SAMPLE_RESULT = {
     { pillar: 'novelty', action: 'Document departures from the closest references' },
   ],
   prior_art_match_count: 42,
-  prior_art_teaser: [{ title: 'US1234567 — distributed throttling' }],
+  prior_art_teaser: [
+    {
+      title: 'US1234567 — distributed throttling',
+      source: 'uspto-patentsview',
+      similarity: 0.72,
+      url: 'https://example.com/patent',
+    },
+  ],
+  rejection_neighbors: [
+    {
+      title: 'Final rejection — obviousness',
+      rejection_basis: '§103 non-obviousness',
+      similarity: 68,
+      source_id: 'uspto-office-actions',
+      snippet: 'The combination of known elements would have been obvious.',
+    },
+  ],
+  examination_risk_summary: {
+    risk_level: 'moderate',
+    primary_basis: '§103 non-obviousness',
+    neighbor_count: 1,
+  },
+  legal_guidance_snippet: 'Recent CAFC guidance emphasizes technical improvement for §101.',
   gate_passed: true,
 };
 
@@ -38,7 +60,7 @@ export const SAMPLE_RESULT = {
  * @param {{status?: number, body?: any, capture?: object}} opts
  * @returns {Promise<{url: string, close: () => Promise<void>, requests: object[]}>}
  */
-export function startStub({ status = 200, body = SAMPLE_RESULT } = {}) {
+export function startStub({ status = 200, body = SAMPLE_RESULT, path = '/analyze' } = {}) {
   const requests = [];
   const server = http.createServer((req, res) => {
     let chunks = '';
@@ -60,13 +82,28 @@ export function startStub({ status = 200, body = SAMPLE_RESULT } = {}) {
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
       resolve({
-        url: `http://127.0.0.1:${port}/analyze`,
+        url: `http://127.0.0.1:${port}${path}`,
         requests,
         close: () => new Promise((r) => server.close(r)),
       });
     });
   });
 }
+
+export const SAMPLE_CORPUS_RESULT = {
+  tier: 'free',
+  technology_domain: 'networking',
+  prior_art_match_count: 3,
+  prior_art_status: 'ok',
+  matches: [
+    {
+      title: 'US1234567 — distributed throttling',
+      source: 'uspto-patentsview',
+      similarity: 0.72,
+      url: 'https://example.com/patent',
+    },
+  ],
+};
 
 /**
  * Run the CLI as a subprocess.

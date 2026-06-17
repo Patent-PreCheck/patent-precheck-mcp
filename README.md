@@ -66,7 +66,7 @@ claude mcp add patent-precheck -- npx -y @patentprecheck/mcp mcp
 { "mcpServers": { "patent-precheck": { "command": "npx", "args": ["-y", "@patentprecheck/mcp", "mcp"] } } }
 ```
 
-MCP tools: `precheck_score`, `precheck_pillars`, `precheck_start_review`.
+MCP tools: `precheck_score`, `precheck_prior_art`, `precheck_rejection_patterns`, `precheck_legal_context`, `precheck_pillars`, `precheck_start_review`, `precheck_search_corpus`, `precheck_cpc_suggest`, `precheck_session_status`, `precheck_deliverables`.
 
 Cursor users can skip the JSON and use the **Add to Cursor** button at the top.
 The server is published to the [official MCP Registry](https://registry.modelcontextprotocol.io)

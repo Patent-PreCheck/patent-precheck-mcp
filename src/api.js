@@ -6,6 +6,8 @@
 // stay server-side.
 
 const DEFAULT_API = 'https://patentprecheck.com/.netlify/functions/analyze';
+const DEFAULT_SEARCH = 'https://patentprecheck.com/.netlify/functions/search-corpus';
+const DEFAULT_REVIEW = 'https://patentprecheck.com/.netlify/functions/review-session';
 const DEFAULT_SITE = 'https://patentprecheck.com';
 
 // Mirror the env conventions already used by scripts/precheck-from-file.js so
@@ -13,6 +15,28 @@ const DEFAULT_SITE = 'https://patentprecheck.com';
 // legacy PPC_* names are accepted as fallbacks.
 export function apiUrl() {
   return process.env.PRECHECK_API_URL || process.env.PPC_API_URL || DEFAULT_API;
+}
+
+export function searchCorpusUrl() {
+  return process.env.PRECHECK_SEARCH_URL || process.env.PPC_SEARCH_URL || DEFAULT_SEARCH;
+}
+
+export function reviewSessionUrl() {
+  return process.env.PRECHECK_REVIEW_SESSION_URL || process.env.PPC_REVIEW_SESSION_URL || DEFAULT_REVIEW;
+}
+
+export function functionsBaseUrl() {
+  const analyze = apiUrl();
+  return analyze.replace(/\/analyze$/, '');
+}
+
+export function downloadArtifactUrl({ reportId, artifact, sessionKey }) {
+  const params = new URLSearchParams({
+    report_id: reportId,
+    artifact: artifact || 'filing_packet',
+  });
+  if (sessionKey) params.set('k', sessionKey);
+  return `${functionsBaseUrl()}/download-artifact?${params.toString()}`;
 }
 
 export function siteUrl() {
@@ -33,7 +57,15 @@ export const MIN_CODE_CHARS = 10;
  * Call the hosted analyze endpoint.
  * @returns {Promise<{ok: boolean, status: number, data: any, error: string|null}>}
  */
-export async function callAnalyze({ code, filename, tier, aiAssistance, timeoutMs = 60000 } = {}) {
+export async function callAnalyze({
+  code,
+  filename,
+  tier,
+  aiAssistance,
+  agentInsights = false,
+  priorArtLimit,
+  timeoutMs = 60000,
+} = {}) {
   if (typeof code !== 'string' || code.trim().length < MIN_CODE_CHARS) {
     return {
       ok: false,
@@ -49,6 +81,12 @@ export async function callAnalyze({ code, filename, tier, aiAssistance, timeoutM
     tier: tier || defaultTier(),
     ai_assistance_declared: aiAssistance || defaultAiAssistance(),
   };
+  if (agentInsights) {
+    body.agent_insights = true;
+    if (Number.isFinite(Number(priorArtLimit))) {
+      body.prior_art_limit = Math.min(Math.max(Number(priorArtLimit), 1), 15);
+    }
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -99,11 +137,99 @@ export async function callAnalyze({ code, filename, tier, aiAssistance, timeoutM
  * distinguishable from organic web traffic in GA4 (utm_source=patent-precheck-mcp).
  * `medium` lets callers separate the CLI ("cli") from an AI agent ("ai-agent").
  */
-export function reviewSignupUrl({ medium = 'cli' } = {}) {
+export function reviewSignupUrl({ medium = 'cli', promo, reportId, email } = {}) {
   const params = new URLSearchParams({
     utm_source: 'patent-precheck-mcp',
     utm_medium: medium,
     utm_campaign: 'in-tool-precheck',
   });
+  const promoCode = typeof promo === 'string' ? promo.trim() : '';
+  if (promoCode) params.set('promo', promoCode);
+  const rid = typeof reportId === 'string' ? reportId.trim() : '';
+  if (rid) params.set('report_id', rid);
+  const mail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (mail) params.set('email', mail);
   return `${siteUrl()}/review-signup?${params.toString()}`;
+}
+
+async function postJson(url, body, { timeoutMs = 45000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    const msg = err && err.name === 'AbortError' ? 'request timed out' : err.message;
+    return { ok: false, status: 0, data: null, error: `request failed: ${msg}` };
+  }
+  clearTimeout(timer);
+
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return {
+      ok: false,
+      status: res.status,
+      data: null,
+      error: `non-JSON response (${res.status}): ${text.slice(0, 300)}`,
+    };
+  }
+  if (!res.ok) {
+    return {
+      ok: false,
+      status: res.status,
+      data,
+      error: data.error || `request failed (HTTP ${res.status})`,
+    };
+  }
+  return { ok: true, status: res.status, data, error: null };
+}
+
+export async function callSearchCorpus({ code, filename, tier, limit, timeoutMs = 30000 } = {}) {
+  if (typeof code !== 'string' || code.trim().length < MIN_CODE_CHARS) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: `Provide at least ${MIN_CODE_CHARS} characters of code or an invention description.`,
+    };
+  }
+  return postJson(
+    searchCorpusUrl(),
+    {
+      code,
+      filename: filename || 'invention.txt',
+      tier: tier || defaultTier(),
+      ...(Number.isFinite(Number(limit)) ? { limit: Number(limit) } : {}),
+    },
+    { timeoutMs },
+  );
+}
+
+export async function callReviewSession({ action, reportId, sessionKey, timeoutMs = 30000 } = {}) {
+  if (!reportId || !sessionKey) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: 'report_id and session_key are required.',
+    };
+  }
+  return postJson(
+    reviewSessionUrl(),
+    {
+      action: action || 'status',
+      report_id: reportId,
+      session_key: sessionKey,
+    },
+    { timeoutMs },
+  );
 }

@@ -20,10 +20,23 @@ Patent PreCheck engine over HTTP — no local keys required.
 | Tool | Purpose |
 |------|---------|
 | `precheck_score` | Score `code` (or a local `path`) for patentability. Returns score, band, per-pillar scores, the limiting pillar, top opportunities, and prior-art count. |
+| `precheck_prior_art` | Top prior-art matches with titles, sources, similarity scores, and URLs. |
+| `precheck_rejection_patterns` | Examination-risk preview — similar office-action / abandonment patterns and primary statutory basis. |
+| `precheck_legal_context` | Short snippet of current US software-patent legal guidance (CAFC / USPTO / Alice). |
 | `precheck_pillars` | Reference: the five pillars (statutes + weights) and band rules. Use to explain a score. No network. |
-| `precheck_start_review` | URL to start a paid Interactive Code Review (evidence + filing package). |
+| `precheck_start_review` | URL to start an Interactive Code Review. Optional `promo`, `report_id`, `email`. |
+| `precheck_search_corpus` | Fast semantic search against the 1M+ prior-art corpus (no LLM scoring). Cheaper when you only need references. |
+| `precheck_cpc_suggest` | Offline CPC classification hints for an invention description. No network. |
+| `precheck_session_status` | Status for an active Interactive Code Review. Requires `report_id` + `session_key` from the access email. |
+| `precheck_deliverables` | Download URLs for finalized ICR deliverables. Requires `report_id` + `session_key`. |
 
-## How to call `precheck_score`
+## Suggested agent workflow
+
+1. `precheck_score` — pillar scores + band
+2. `precheck_prior_art` — cite the closest references
+3. `precheck_rejection_patterns` — prosecution-risk preview
+4. `precheck_legal_context` — current law context
+5. `precheck_start_review` with `promo` when the user has a beta code and wants to strengthen the invention
 
 - Pass the relevant code as `code`, or a file path as `path`. Prefer the specific
   module/function the user is asking about over an entire repo — focused input scores better.

@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 
 import {
   callAnalyze,
+  callSearchCorpus,
+  callReviewSession,
+  downloadArtifactUrl,
   reviewSignupUrl,
+  searchCorpusUrl,
+  functionsBaseUrl,
   apiUrl,
   siteUrl,
   defaultTier,
@@ -92,4 +97,51 @@ test('callAnalyze handles a non-JSON response body', async () => {
   } finally {
     globalThis.fetch = orig;
   }
+});
+
+test('searchCorpusUrl and functionsBaseUrl honor env overrides', () => {
+  const prev = { ...process.env };
+  try {
+    process.env.PRECHECK_SEARCH_URL = 'https://example.test/search-corpus';
+    process.env.PRECHECK_API_URL = 'https://example.test/analyze';
+    assert.equal(searchCorpusUrl(), 'https://example.test/search-corpus');
+    assert.equal(functionsBaseUrl(), 'https://example.test');
+  } finally {
+    process.env = prev;
+  }
+});
+
+test('downloadArtifactUrl builds a signed download link', () => {
+  const url = downloadArtifactUrl({
+    reportId: 'PPC-2026-06-15-ABCDE',
+    artifact: 'filing_packet',
+    sessionKey: 'secret',
+  });
+  const u = new URL(url);
+  assert.match(u.pathname, /download-artifact/);
+  assert.equal(u.searchParams.get('report_id'), 'PPC-2026-06-15-ABCDE');
+  assert.equal(u.searchParams.get('artifact'), 'filing_packet');
+  assert.equal(u.searchParams.get('k'), 'secret');
+});
+
+test('callSearchCorpus posts to the search endpoint', async () => {
+  const orig = globalThis.fetch;
+  let captured;
+  globalThis.fetch = async (_url, init) => {
+    captured = { url: _url, body: JSON.parse(init.body) };
+    return new Response(JSON.stringify({ prior_art_match_count: 1, matches: [] }), { status: 200 });
+  };
+  try {
+    const res = await callSearchCorpus({ code: 'a sufficiently long invention description', limit: 8 });
+    assert.equal(res.ok, true);
+    assert.equal(captured.body.limit, 8);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+test('callReviewSession requires report_id and session_key', async () => {
+  const res = await callReviewSession({ action: 'status' });
+  assert.equal(res.ok, false);
+  assert.match(res.error, /report_id and session_key/);
 });

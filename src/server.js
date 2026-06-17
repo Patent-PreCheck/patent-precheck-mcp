@@ -5,7 +5,6 @@
 // leaving their agent. Transport is stdio; launch via `precheck mcp`.
 
 import fs from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -13,8 +12,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-import { callAnalyze, reviewSignupUrl, MIN_CODE_CHARS } from './api.js';
-import { renderScoreText, renderPillarsReference } from './render.js';
+import { handleMcpTool } from './tool_handlers.js';
 
 function readPkgVersion() {
   try {
@@ -26,13 +24,21 @@ function readPkgVersion() {
   }
 }
 
-function textResult(text, { isError = false } = {}) {
-  return { content: [{ type: 'text', text }], ...(isError ? { isError: true } : {}) };
-}
+const tierSchema = z.enum(['free', 'paid_review', 'enterprise']).optional();
 
 /** Build and return the configured MCP server. */
 export function buildServer(version = readPkgVersion()) {
   const server = new McpServer({ name: 'patent-precheck', version });
+
+  const inventionSchema = {
+    code: z.string().optional().describe('Source code or invention description (>= 10 chars).'),
+    path: z
+      .string()
+      .optional()
+      .describe('Path to a local file to read and analyze instead of passing `code` inline.'),
+    filename: z.string().optional().describe('Optional filename hint (e.g. main.ts).'),
+    tier: tierSchema.describe('Analysis tier. Defaults to free.'),
+  };
 
   server.registerTool(
     'precheck_score',
@@ -40,68 +46,60 @@ export function buildServer(version = readPkgVersion()) {
       title: 'Patent PreCheck — score patentability',
       description:
         'Run a patentability pre-check on source code or an invention description. ' +
-        'Returns a 0\u2013100 patentability score across the four USPTO statutory pillars ' +
-        '(\u00a7101 eligibility, \u00a7102 novelty, \u00a7103 non-obviousness, \u00a7101 utility), a ' +
-        'separate \u00a7112 filing-readiness signal, the band (Not Ready \u2192 File Ready), the ' +
-        'pillar that holds the band back, top opportunities to strengthen, and a count of ' +
-        'prior-art matches consulted. Provide either `code` (the text) or `path` (a local file to read).',
+        'Returns pillar scores, band, opportunities, prior-art count, rejection patterns, ' +
+        'and legal context when available. Provide `code` or `path`.',
+      inputSchema: { ...inventionSchema },
+    },
+    async (args) => handleMcpTool('precheck_score', args, { allowPath: true, medium: 'ai-agent' }),
+  );
+
+  server.registerTool(
+    'precheck_prior_art',
+    {
+      title: 'Patent PreCheck — prior art matches',
+      description:
+        'Return the closest prior-art matches (titles, sources, similarity, URLs) for an invention.',
       inputSchema: {
-        code: z
-          .string()
+        ...inventionSchema,
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(15)
           .optional()
-          .describe('The source code or invention description to analyze (>= 10 chars).'),
-        path: z
-          .string()
-          .optional()
-          .describe('Path to a local file to read and analyze instead of passing `code` inline.'),
-        filename: z
-          .string()
-          .optional()
-          .describe('Optional filename hint (e.g. main.ts) used for language/context.'),
-        tier: z
-          .enum(['free', 'paid_review', 'enterprise'])
-          .optional()
-          .describe('Analysis tier. Defaults to free; paid tiers require server-side entitlement.'),
+          .describe('Max matches to return (default 8).'),
       },
     },
-    async ({ code, path: filePath, filename, tier }) => {
-      let text = typeof code === 'string' ? code : '';
-      let name = filename;
-      if (!text && filePath) {
-        try {
-          text = await readFile(filePath, 'utf8');
-        } catch (err) {
-          return textResult(`Could not read file "${filePath}": ${err.message}`, { isError: true });
-        }
-        if (!name) name = path.basename(filePath);
-      }
-      if (!text || text.trim().length < MIN_CODE_CHARS) {
-        return textResult(
-          `Provide at least ${MIN_CODE_CHARS} characters via "code" or a readable "path".`,
-          { isError: true },
-        );
-      }
+    async (args) =>
+      handleMcpTool('precheck_prior_art', args, { allowPath: true, medium: 'ai-agent' }),
+  );
 
-      const { ok, data, error } = await callAnalyze({ code: text, filename: name, tier });
-      if (!ok) {
-        const hint =
-          error && /HTTP 402|Upgrade/i.test(error)
-            ? ' (this invention has used its free analysis; start an Interactive Code Review at ' +
-              reviewSignupUrl({ medium: 'ai-agent' }) +
-              ')'
-            : '';
-        return textResult(`Patent PreCheck error: ${error}${hint}`, { isError: true });
-      }
-
-      const summary = renderScoreText(data, { filename: name, medium: 'ai-agent' });
-      const compact = JSON.stringify(data);
-      return {
-        content: [
-          { type: 'text', text: summary },
-          { type: 'text', text: `Raw result JSON:\n\`\`\`json\n${compact}\n\`\`\`` },
-        ],
-      };
+  server.registerTool(
+    'precheck_rejection_patterns',
+    {
+      title: 'Patent PreCheck — rejection pattern preview',
+      description:
+        'Preview examination-risk signals and similar office-action / abandonment patterns.',
+      inputSchema: { ...inventionSchema },
     },
+    async (args) =>
+      handleMcpTool('precheck_rejection_patterns', args, { allowPath: true, medium: 'ai-agent' }),
+  );
+
+  server.registerTool(
+    'precheck_legal_context',
+    {
+      title: 'Patent PreCheck — legal intelligence context',
+      description:
+        'Return a short snippet of current US software-patent legal guidance relevant to this invention.',
+      inputSchema: {
+        code: inventionSchema.code,
+        path: inventionSchema.path,
+        filename: inventionSchema.filename,
+      },
+    },
+    async (args) =>
+      handleMcpTool('precheck_legal_context', args, { allowPath: true, medium: 'ai-agent' }),
   );
 
   server.registerTool(
@@ -109,11 +107,10 @@ export function buildServer(version = readPkgVersion()) {
     {
       title: 'Patent PreCheck — scoring reference',
       description:
-        'List the five patentability pillars (with statutes and weights) and the band rules ' +
-        'used by precheck_score. Use this to explain a score to the user. No network call.',
+        'List the patentability pillars and band rules used by precheck_score. No network call.',
       inputSchema: {},
     },
-    async () => textResult(renderPillarsReference()),
+    async () => handleMcpTool('precheck_pillars', {}, { medium: 'ai-agent' }),
   );
 
   server.registerTool(
@@ -121,15 +118,89 @@ export function buildServer(version = readPkgVersion()) {
     {
       title: 'Patent PreCheck — start an Interactive Code Review',
       description:
-        'Return the URL where the user can start a paid, live Interactive Code Review that ' +
-        'strengthens each pillar with evidence and produces a filing package. Use after a ' +
-        'precheck_score when the user wants to act on the result.',
-      inputSchema: {},
+        'Return the URL to start an Interactive Code Review (optionally with a promo code).',
+      inputSchema: {
+        promo: z.string().optional().describe('Promo / beta code to skip payment (e.g. Beta).'),
+        report_id: z.string().optional().describe('Free-score report id to carry forward.'),
+        email: z.string().optional().describe('Optional email prefill hint.'),
+      },
     },
-    async () =>
-      textResult(
-        `Start an Interactive Code Review (live coaching + evidence + filing package):\n${reviewSignupUrl({ medium: 'ai-agent' })}`,
-      ),
+    async (args) => handleMcpTool('precheck_start_review', args, { medium: 'ai-agent' }),
+  );
+
+  server.registerTool(
+    'precheck_search_corpus',
+    {
+      title: 'Patent PreCheck — semantic corpus search',
+      description:
+        'Fast semantic search against the 1M+ prior-art corpus without LLM scoring. ' +
+        'Returns ranked matches with similarity scores.',
+      inputSchema: {
+        code: inventionSchema.code,
+        filename: inventionSchema.filename,
+        tier: tierSchema,
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(20)
+          .optional()
+          .describe('Max matches (default 12).'),
+      },
+    },
+    async (args) =>
+      handleMcpTool('precheck_search_corpus', args, { allowPath: true, medium: 'ai-agent' }),
+  );
+
+  server.registerTool(
+    'precheck_cpc_suggest',
+    {
+      title: 'Patent PreCheck — CPC classification hints',
+      description:
+        'Suggest Cooperative Patent Classification (CPC) codes for an invention description. ' +
+        'Offline heuristic — informational only.',
+      inputSchema: {
+        code: inventionSchema.code,
+        path: inventionSchema.path,
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Max suggestions (default 5).'),
+      },
+    },
+    async (args) =>
+      handleMcpTool('precheck_cpc_suggest', args, { allowPath: true, medium: 'ai-agent' }),
+  );
+
+  server.registerTool(
+    'precheck_session_status',
+    {
+      title: 'Patent PreCheck — ICR session status',
+      description:
+        'Return status for an active Interactive Code Review session. Requires report_id and session_key.',
+      inputSchema: {
+        report_id: z.string().describe('Report id (PPC-YYYY-MM-DD-XXXXX).'),
+        session_key: z.string().describe('Session secret from the access email (?k=…).'),
+      },
+    },
+    async (args) => handleMcpTool('precheck_session_status', args, { medium: 'ai-agent' }),
+  );
+
+  server.registerTool(
+    'precheck_deliverables',
+    {
+      title: 'Patent PreCheck — deliverable download links',
+      description:
+        'Return download URLs for finalized ICR deliverables (filing packet, coaching report, package zip, scorecard PDF).',
+      inputSchema: {
+        report_id: z.string().describe('Report id (PPC-YYYY-MM-DD-XXXXX).'),
+        session_key: z.string().describe('Session secret from the access email (?k=…).'),
+      },
+    },
+    async (args) => handleMcpTool('precheck_deliverables', args, { medium: 'ai-agent' }),
   );
 
   return server;

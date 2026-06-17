@@ -1,6 +1,6 @@
 {
   "name": "@patentprecheck/mcp",
-  "version": "0.1.2",
+  "version": "0.3.0",
   "mcpName": "io.github.Patent-PreCheck/patent-precheck",
   "description": "Patent PreCheck CLI + MCP server — run a patentability pre-check on your code from inside Cursor, Claude Code, Codex, and other AI coding agents.",
   "homepage": "https://patentprecheck.com/integrations",
