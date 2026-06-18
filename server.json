@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Patent-PreCheck/patent-precheck",
   "title": "Patent PreCheck",
-  "description": "Score live code for patentability in Cursor, Claude, and Codex — 12 keyless tools: USPTO pillar scores, 1M+ prior-art corpus, rejection-risk preview, patent lookup/compare, and filing coaching funnel. Hosted at patentprecheck.com/mcp.",
+  "description": "Keyless 12-tool patentability MCP — USPTO pillar scores, prior art, hosted at patentprecheck.com/mcp.",
   "version": "0.4.1",
   "websiteUrl": "https://patentprecheck.com/integrations",
   "packages": [
