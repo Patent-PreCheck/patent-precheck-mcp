@@ -2,14 +2,14 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Patent-PreCheck/patent-precheck",
   "title": "Patent PreCheck",
-  "description": "Patentability pre-check for code: USPTO pillar scores, filing-readiness, and prior-art signals.",
-  "version": "0.4.0",
+  "description": "Score live code for patentability in Cursor, Claude, and Codex — 12 keyless tools: USPTO pillar scores, 1M+ prior-art corpus, rejection-risk preview, patent lookup/compare, and filing coaching funnel. Hosted at patentprecheck.com/mcp.",
+  "version": "0.4.1",
   "websiteUrl": "https://patentprecheck.com/integrations",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@patentprecheck/mcp",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "transport": {
         "type": "stdio"
       },

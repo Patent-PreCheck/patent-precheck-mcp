@@ -1,8 +1,8 @@
 {
   "name": "@patentprecheck/mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "mcpName": "io.github.Patent-PreCheck/patent-precheck",
-  "description": "Patent PreCheck CLI + MCP server — run a patentability pre-check on your code from inside Cursor, Claude Code, Codex, and other AI coding agents.",
+  "description": "Score code for patentability inside Cursor, Claude, and Codex — keyless MCP with prior-art search, USPTO pillar scores, and patent lookup. Hosted at patentprecheck.com/mcp.",
   "homepage": "https://patentprecheck.com/integrations",
   "repository": {
     "type": "git",
@@ -43,7 +43,13 @@
     "cursor",
     "claude-code",
     "codex",
-    "prior-art"
+    "prior-art",
+    "uspto",
+    "software-patent",
+    "novelty",
+    "alice-test",
+    "cursor-mcp",
+    "model-context-protocol"
   ],
   "author": "Patent PreCheck",
   "license": "MIT",

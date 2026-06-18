@@ -86,9 +86,15 @@ https://patentprecheck.com/mcp
 { "mcpServers": { "patent-precheck": { "url": "https://patentprecheck.com/mcp" } } }
 ```
 
-Same three tools and the same scoring engine. The hosted variant takes invention
+Same **12 tools** and the same scoring engine. The hosted variant takes invention
 text inline via `code` (it never reads files from your machine — use the local
 `npx` server above if you want the `path` argument).
+
+**Quick try in Cursor (no install):** copy `config-examples/cursor-mcp-hosted.json` into `.cursor/mcp.json`.
+
+## Why Patent PreCheck vs. other patent MCPs?
+
+USPTO lookup MCPs (50+ tools) answer *"what does patent X say?"* Patent PreCheck answers *"can **this code** be patented?"* — pillar scores, prior-art similarity, rejection patterns, and a path to strengthen before filing. **No USPTO API key**; corpus and keys stay server-side.
 
 ## Develop from source
 

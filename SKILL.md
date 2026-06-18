@@ -29,6 +29,8 @@ Patent PreCheck engine over HTTP — no local keys required.
 | `precheck_cpc_suggest` | Offline CPC classification hints for an invention description. No network. |
 | `precheck_session_status` | Status for an active Interactive Code Review. Requires `report_id` + `session_key` from the access email. |
 | `precheck_deliverables` | Download URLs for finalized ICR deliverables. Requires `report_id` + `session_key`. |
+| `precheck_lookup_patent` | Resolve a US patent/application id (e.g. `US1234567B2`) via USPTO ODP + optional corpus join. |
+| `precheck_compare_to_patent` | Compare invention text to a known patent — embedding similarity + prior-art risk analysis. |
 
 ## Suggested agent workflow
 
@@ -36,7 +38,8 @@ Patent PreCheck engine over HTTP — no local keys required.
 2. `precheck_prior_art` — cite the closest references
 3. `precheck_rejection_patterns` — prosecution-risk preview
 4. `precheck_legal_context` — current law context
-5. `precheck_start_review` with `promo` when the user has a beta code and wants to strengthen the invention
+5. `precheck_compare_to_patent` when the user names a specific patent to differentiate against
+6. `precheck_start_review` with `promo` when the user has a beta code and wants to strengthen the invention
 
 - Pass the relevant code as `code`, or a file path as `path`. Prefer the specific
   module/function the user is asking about over an entire repo — focused input scores better.
